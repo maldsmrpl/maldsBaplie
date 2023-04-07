@@ -24,29 +24,6 @@ namespace LashingCalculator
             InitializeComponent();
             BaplieListView.ItemsSource = BaplieItems;
         }
-        private void ListView_Click(object sender, RoutedEventArgs e)
-        {
-            ListView listView = sender as ListView;
-            GridViewColumnHeader headerClicked = e.OriginalSource as GridViewColumnHeader;
-
-            if (headerClicked != null && headerClicked.Column.DisplayMemberBinding != null)
-            {
-                string sortBy = ((Binding)headerClicked.Column.DisplayMemberBinding).Path.Path;
-                ICollectionView dataView = CollectionViewSource.GetDefaultView(listView.ItemsSource);
-
-                if (dataView != null)
-                {
-                    ListSortDirection direction = ListSortDirection.Ascending;
-                    if (dataView.SortDescriptions.Count > 0 && dataView.SortDescriptions[0].PropertyName == sortBy)
-                    {
-                        direction = dataView.SortDescriptions[0].Direction == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending;
-                    }
-
-                    dataView.SortDescriptions.Clear();
-                    dataView.SortDescriptions.Add(new SortDescription(sortBy, direction));
-                }
-            }
-        }
 
         private void ProcessButton_Click(object sender, RoutedEventArgs e)
         {
@@ -80,9 +57,16 @@ namespace LashingCalculator
                 var ediDocument = (EdiDocument)Activator.CreateInstance(typeof(EdiDocument), BindingFlags.NonPublic | BindingFlags.Instance, null, new object[] { ediData, options }, null);
 
                 var segments = ediDocument.Segments.ToList();
+                int holdCount = 0;
+                int deckCount = 0;
+                int dgCount = 0;
+                int oogCount = 0;
+
                 for (int i = 0; i < segments.Count; i++)
                 {
                     var segment = segments[i];
+                    bool isOOG = false;
+
                     if (segment.Id.Equals("EQD", StringComparison.OrdinalIgnoreCase))
                     {
                         string containerNumber = segment.Elements.Count >= 2 ? segment.Elements[1]?.Value : null;
@@ -96,11 +80,21 @@ namespace LashingCalculator
                             size = GetContainerSizeFromIsoCode(isoCode);
                         }
 
+
                         Location location = Location.hold;
 
                         for (int j = i + 1; j < segments.Count; j++)
                         {
                             var nextSegment = segments[j];
+
+                            if (nextSegment.Id.Equals("DIM", StringComparison.OrdinalIgnoreCase) && nextSegment.Elements.Count >= 4)
+                            {
+                                if (nextSegment.Elements[3]?.Value == "Y")
+                                {
+                                    isOOG = true;
+                                    oogCount++;
+                                }
+                            }
 
                             if (nextSegment.Id.Equals("LOC", StringComparison.OrdinalIgnoreCase) && nextSegment.Elements.Count >= 2 && nextSegment.Elements[0]?.Value == "147")
                             {
@@ -115,11 +109,15 @@ namespace LashingCalculator
                                     position = $"{bay.ToString("00")} {row.ToString("00")} {tier.ToString("00")}";
 
                                     int tierNumber;
-                                    
-                                        if (tier >= 80)
-                                        {
-                                            location = Location.deck;
-                                        }
+                                    if (tier >= 80)
+                                    {
+                                        location = Location.deck;
+                                        deckCount++;
+                                    }
+                                    else
+                                    {
+                                        holdCount++;
+                                    }
                                 }
                                 break;
                             }
@@ -132,13 +130,131 @@ namespace LashingCalculator
 
                         if (containerNumber != null)
                         {
-                            BaplieItems.Add(new BaplieItem { ContainerNumber = containerNumber, Position = position, IsoCode = isoCode, Size = size, Location = location });
+                            BaplieItems.Add(new BaplieItem { ContainerNumber = containerNumber, Position = position, IsoCode = isoCode, Size = size, Location = location, IsOOG = isOOG });
                         }
+                    }
 
-                        //SortBaplieItemsByPosition();
+                    if (segment.Id.Equals("DGS", StringComparison.OrdinalIgnoreCase))
+                    {
+                        dgCount++;
                     }
                 }
+
+                TextBlockTotalNumberOfBoxes.Text = GetTotalContainerCount().ToString();
+                TextBlockCountTEU.Text = CountTEU().ToString();
+                TextBlockCount20FootContainers.Text = Count20FootContainers().ToString();
+                TextBlockCount40FootContainers.Text = Count40FootContainers().ToString();
+                TextBlockCount45FootContainers.Text = Count45FootContainers().ToString();
+                TextBlockCountDeck.Text = deckCount.ToString();
+                TextBlockCountHold.Text = holdCount.ToString();
+                TextBlockCountDG.Text = dgCount.ToString();
+                TextBlockCountRF.Text = CountRFContainers().ToString();
+                TextBlockCountOOG.Text = CountOOGContainers().ToString();
+                TextBlockCountOOG.Text = oogCount.ToString();
             }
+        }
+
+        private int GetTotalContainerCount()
+        {
+            return BaplieItems.Count;
+        }
+        private int CountTEU()
+        {
+            int teuCount = 0;
+
+            foreach (var item in BaplieItems)
+            {
+                switch (item.Size)
+                {
+                    case 20:
+                        teuCount += 1;
+                        break;
+                    case 40:
+                        teuCount += 2;
+                        break;
+                    case 45:
+                        teuCount += 2;
+                        break;
+                }
+            }
+
+            return teuCount;
+        }
+
+        private int CountRFContainers()
+        {
+            int count = 0;
+
+            foreach (var item in BaplieItems)
+            {
+                if (item.IsoCode != null && item.IsoCode.Length >= 3 && (item.IsoCode[2] == 'R' || item.IsoCode[2] == 'H'))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private int CountOOGContainers()
+        {
+            int oogCount = 0;
+
+            for (int i = 0; i < BaplieItems.Count; i++)
+            {
+                var item = BaplieItems[i];
+
+                if (item.IsOOG)
+                {
+                    oogCount++;
+                }
+            }
+
+            return oogCount;
+        }
+
+
+        private int Count20FootContainers()
+        {
+            int count = 0;
+
+            foreach (var item in BaplieItems)
+            {
+                if (item.Size == 20)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+        private int Count40FootContainers()
+        {
+            int count = 0;
+
+            foreach (var item in BaplieItems)
+            {
+                if (item.Size == 40)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+        private int Count45FootContainers()
+        {
+            int count = 0;
+
+            foreach (var item in BaplieItems)
+            {
+                if (item.Size == 45)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -162,7 +278,7 @@ namespace LashingCalculator
             OnPropertyChanged(nameof(BaplieItems));
         }
 
-        
+
         private static int GetContainerSizeFromIsoCode(string isoCode)
         {
             if (isoCode == null || isoCode.Length < 1)

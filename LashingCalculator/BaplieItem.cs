@@ -13,5 +13,6 @@ namespace LashingCalculator
         public int Size { get; set; }
         public string IsoCode { get; set; }
         public Location Location { get; set; }
+        public bool IsOOG { get; set; }
     }
 }
