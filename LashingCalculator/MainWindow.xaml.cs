@@ -2,16 +2,20 @@
 using LashingCalculator;
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 
 namespace LashingCalculator
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         public ObservableCollection<BaplieItem> BaplieItems { set; get; } = new ObservableCollection<BaplieItem>();
 
@@ -19,6 +23,29 @@ namespace LashingCalculator
         {
             InitializeComponent();
             BaplieListView.ItemsSource = BaplieItems;
+        }
+        private void ListView_Click(object sender, RoutedEventArgs e)
+        {
+            ListView listView = sender as ListView;
+            GridViewColumnHeader headerClicked = e.OriginalSource as GridViewColumnHeader;
+
+            if (headerClicked != null && headerClicked.Column.DisplayMemberBinding != null)
+            {
+                string sortBy = ((Binding)headerClicked.Column.DisplayMemberBinding).Path.Path;
+                ICollectionView dataView = CollectionViewSource.GetDefaultView(listView.ItemsSource);
+
+                if (dataView != null)
+                {
+                    ListSortDirection direction = ListSortDirection.Ascending;
+                    if (dataView.SortDescriptions.Count > 0 && dataView.SortDescriptions[0].PropertyName == sortBy)
+                    {
+                        direction = dataView.SortDescriptions[0].Direction == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending;
+                    }
+
+                    dataView.SortDescriptions.Clear();
+                    dataView.SortDescriptions.Add(new SortDescription(sortBy, direction));
+                }
+            }
         }
 
         private void ProcessButton_Click(object sender, RoutedEventArgs e)
@@ -69,6 +96,8 @@ namespace LashingCalculator
                             size = GetContainerSizeFromIsoCode(isoCode);
                         }
 
+                        Location location = Location.hold;
+
                         for (int j = i + 1; j < segments.Count; j++)
                         {
                             var nextSegment = segments[j];
@@ -79,10 +108,18 @@ namespace LashingCalculator
 
                                 if (positionData != null && positionData.Length == 7)
                                 {
-                                    string bay = positionData.Substring(0, 3);
-                                    string row = positionData.Substring(3, 2);
-                                    string tier = positionData.Substring(5, 2);
-                                    position = $"{bay} {row} {tier}";
+                                    int.TryParse(positionData.Substring(0, 3), out int bay);
+                                    int.TryParse(positionData.Substring(3, 2), out int row);
+                                    int.TryParse(positionData.Substring(5, 2), out int tier);
+
+                                    position = $"{bay.ToString("00")} {row.ToString("00")} {tier.ToString("00")}";
+
+                                    int tierNumber;
+                                    
+                                        if (tier >= 80)
+                                        {
+                                            location = Location.deck;
+                                        }
                                 }
                                 break;
                             }
@@ -95,13 +132,37 @@ namespace LashingCalculator
 
                         if (containerNumber != null)
                         {
-                            BaplieItems.Add(new BaplieItem { ContainerNumber = containerNumber, Position = position, IsoCode = isoCode, Size = size });
+                            BaplieItems.Add(new BaplieItem { ContainerNumber = containerNumber, Position = position, IsoCode = isoCode, Size = size, Location = location });
                         }
+
+                        //SortBaplieItemsByPosition();
                     }
                 }
             }
         }
 
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+
+        private void SortBaplieItemsByPosition()
+        {
+            var sortedItems = BaplieItems.OrderBy(item => item.Position).ToList();
+
+            BaplieItems.Clear();
+            foreach (var item in sortedItems)
+            {
+                BaplieItems.Add(item);
+            }
+
+            OnPropertyChanged(nameof(BaplieItems));
+        }
+
+        
         private static int GetContainerSizeFromIsoCode(string isoCode)
         {
             if (isoCode == null || isoCode.Length < 1)

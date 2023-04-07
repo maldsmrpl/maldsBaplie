@@ -1,6 +1,8 @@
-﻿<Window x:Class="LashingCalculator.MainWindow"
+﻿<Window
+        xmlns:local="clr-namespace:LashingCalculator"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:av="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="av" x:Class="LashingCalculator.MainWindow"
         Title="BAPLIE EDI Parser" Height="450" Width="800">
     <Grid>
         <DockPanel>
@@ -16,17 +18,48 @@
                 <TabItem Header="Lashing Info">
                     <!-- Add Lashing Info content here -->
                 </TabItem>
-                <TabItem Header="Container List">
-                    <ListView x:Name="BaplieListView" Margin="10">
+                <TabItem Header="Container List" Height="22" Margin="-2,0,-2,0" VerticalAlignment="Bottom">
+                    <ListView x:Name="BaplieListView" Margin="10,10,10,46" Background="White">
                         <ListView.View>
+
                             <GridView>
-                                <GridViewColumn Header="Position" DisplayMemberBinding="{Binding Position}" Width="120"/>
-                                <GridViewColumn Header="Container Number" DisplayMemberBinding="{Binding ContainerNumber}" Width="120"/>
-                                <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="60"/>
-                                <GridViewColumn Header="ISO Code" DisplayMemberBinding="{Binding IsoCode}" Width="120"/>
-                                <GridViewColumn Header="Tare Weight" DisplayMemberBinding="{Binding TareWeight}" Width="120"/>
-                                <GridViewColumn Header="Gross Weight" DisplayMemberBinding="{Binding GrossWeight}" Width="120"/>
+                                <GridViewColumn Header="Position" Width="80">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Position}" TextAlignment="Center" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Container Number" Width="120">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ContainerNumber}" HorizontalAlignment="Center" TextAlignment="Center" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Size" Width="60">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Size}" HorizontalAlignment="Center" TextAlignment="Center" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="ISO Code" Width="120">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding IsoCode}" HorizontalAlignment="Center" TextAlignment="Center" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Location" Width="120">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Location}" HorizontalAlignment="Center" TextAlignment="Center" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
                             </GridView>
+
                         </ListView.View>
                     </ListView>
                 </TabItem>

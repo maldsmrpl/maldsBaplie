@@ -12,7 +12,6 @@ namespace LashingCalculator
         public string ContainerNumber { get; set; }
         public int Size { get; set; }
         public string IsoCode { get; set; }
-        public int TareWeight { get; set; }
-        public int GrossWeight { get; set; }
+        public Location Location { get; set; }
     }
 }
