@@ -14,5 +14,9 @@ namespace LashingCalculator
         public string IsoCode { get; set; }
         public Location Location { get; set; }
         public bool IsOOG { get; set; }
+        public int LeftOverDim { get; set; }
+        public int RightOverDim { get; set; }
+        public int TopOverDim { get; set; }
+
     }
 }

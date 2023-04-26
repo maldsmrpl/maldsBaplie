@@ -62,13 +62,20 @@ namespace LashingCalculator
                 int dgCount = 0;
                 int oogCount = 0;
 
+                BaplieItem currentItem = null;
+
                 for (int i = 0; i < segments.Count; i++)
                 {
                     var segment = segments[i];
-                    bool isOOG = false;
 
                     if (segment.Id.Equals("EQD", StringComparison.OrdinalIgnoreCase))
                     {
+                        if (currentItem != null)
+                        {
+                            BaplieItems.Add(currentItem);
+                            currentItem = null;
+                        }
+
                         string containerNumber = segment.Elements.Count >= 2 ? segment.Elements[1]?.Value : null;
                         string position = null;
                         int size = 0;
@@ -80,57 +87,70 @@ namespace LashingCalculator
                             size = GetContainerSizeFromIsoCode(isoCode);
                         }
 
+                        currentItem = new BaplieItem { ContainerNumber = containerNumber, IsoCode = isoCode, Size = size };
+                    }
 
-                        Location location = Location.hold;
+                    if (currentItem == null) continue;
 
-                        for (int j = i + 1; j < segments.Count; j++)
+                    if (segment.Id.Equals("DIM", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int leftOverDim = 0;
+                        int rightOverDim = 0;
+                        int topOverDim = 0;
+
+                        for (int j = 0; j < segment.Elements.Count; j++)
                         {
-                            var nextSegment = segments[j];
-
-                            if (nextSegment.Id.Equals("DIM", StringComparison.OrdinalIgnoreCase) && nextSegment.Elements.Count >= 4)
+                            int.TryParse(segment.Elements[j]?.Value, out int overDim);
+                            switch (j)
                             {
-                                if (nextSegment.Elements[3]?.Value == "Y")
-                                {
-                                    isOOG = true;
-                                    oogCount++;
-                                }
-                            }
-
-                            if (nextSegment.Id.Equals("LOC", StringComparison.OrdinalIgnoreCase) && nextSegment.Elements.Count >= 2 && nextSegment.Elements[0]?.Value == "147")
-                            {
-                                string positionData = nextSegment.Elements[1]?.Value;
-
-                                if (positionData != null && positionData.Length == 7)
-                                {
-                                    int.TryParse(positionData.Substring(0, 3), out int bay);
-                                    int.TryParse(positionData.Substring(3, 2), out int row);
-                                    int.TryParse(positionData.Substring(5, 2), out int tier);
-
-                                    position = $"{bay.ToString("00")} {row.ToString("00")} {tier.ToString("00")}";
-
-                                    int tierNumber;
-                                    if (tier >= 80)
-                                    {
-                                        location = Location.deck;
-                                        deckCount++;
-                                    }
-                                    else
-                                    {
-                                        holdCount++;
-                                    }
-                                }
-                                break;
-                            }
-
-                            if (nextSegment.Id.Equals("EQD", StringComparison.OrdinalIgnoreCase))
-                            {
-                                break;
+                                case 0:
+                                    leftOverDim = overDim;
+                                    break;
+                                case 1:
+                                    rightOverDim = overDim;
+                                    break;
+                                case 2:
+                                    topOverDim = overDim;
+                                    break;
                             }
                         }
 
-                        if (containerNumber != null)
+                        currentItem.LeftOverDim = leftOverDim;
+                        currentItem.RightOverDim = rightOverDim;
+                        currentItem.TopOverDim = topOverDim;
+
+                        // Check if any overdimension is greater than zero.
+                        if (leftOverDim > 0 || rightOverDim > 0 || topOverDim > 0)
                         {
-                            BaplieItems.Add(new BaplieItem { ContainerNumber = containerNumber, Position = position, IsoCode = isoCode, Size = size, Location = location, IsOOG = isOOG });
+                            currentItem.IsOOG = true;
+                            oogCount++;
+                        }
+                    }
+
+
+                    if (segment.Id.Equals("LOC", StringComparison.OrdinalIgnoreCase) && segment.Elements.Count >= 2 && segment.Elements[0]?.Value == "147")
+                    {
+                        string positionData = segment.Elements[1]?.Value;
+
+                        if (positionData != null && positionData.Length == 7)
+                        {
+                            int.TryParse(positionData.Substring(0, 3), out int bay);
+                            int.TryParse(positionData.Substring(3, 2), out int row);
+                            int.TryParse(positionData.Substring(5, 2), out int tier);
+
+                            currentItem.Position = $"{bay.ToString("00")} {row.ToString("00")} {tier.ToString("00")}";
+
+                            int tierNumber;
+                            if (tier >= 80)
+                            {
+                                currentItem.Location = Location.deck;
+                                deckCount++;
+                            }
+                            else
+                            {
+                                currentItem.Location = Location.hold;
+                                holdCount++;
+                            }
                         }
                     }
 
@@ -140,6 +160,11 @@ namespace LashingCalculator
                     }
                 }
 
+                if (currentItem != null)
+                {
+                    BaplieItems.Add(currentItem);
+                }
+                // Update the counts displayed on the UI
                 TextBlockTotalNumberOfBoxes.Text = GetTotalContainerCount().ToString();
                 TextBlockCountTEU.Text = CountTEU().ToString();
                 TextBlockCount20FootContainers.Text = Count20FootContainers().ToString();
@@ -150,7 +175,6 @@ namespace LashingCalculator
                 TextBlockCountDG.Text = dgCount.ToString();
                 TextBlockCountRF.Text = CountRFContainers().ToString();
                 TextBlockCountOOG.Text = CountOOGContainers().ToString();
-                TextBlockCountOOG.Text = oogCount.ToString();
             }
         }
 
@@ -180,6 +204,41 @@ namespace LashingCalculator
 
             return teuCount;
         }
+        private int GetMaxHeight(int size)
+        {
+            switch (size)
+            {
+                case 20:
+                    return 2591; // 8ft 6in in mm
+                case 40:
+                    return 2591; // 8ft 6in in mm
+                case 45:
+                    return 2591; // 8ft 6in in mm
+                default:
+                    return 0;
+            }
+        }
+
+        private int GetMaxWidth(int size)
+        {
+            return 2438; // 8ft in mm
+        }
+
+        private int GetMaxLength(int size)
+        {
+            switch (size)
+            {
+                case 20:
+                    return 6096; // 20ft in mm
+                case 40:
+                    return 12192; // 40ft in mm
+                case 45:
+                    return 13716; // 45ft in mm
+                default:
+                    return 0;
+            }
+        }
+
 
         private int CountRFContainers()
         {
@@ -198,19 +257,7 @@ namespace LashingCalculator
 
         private int CountOOGContainers()
         {
-            int oogCount = 0;
-
-            for (int i = 0; i < BaplieItems.Count; i++)
-            {
-                var item = BaplieItems[i];
-
-                if (item.IsOOG)
-                {
-                    oogCount++;
-                }
-            }
-
-            return oogCount;
+            return BaplieItems.Count(item => item.LeftOverDim > 0 || item.RightOverDim > 0 || item.TopOverDim > 0);
         }
 
 
@@ -313,4 +360,3 @@ namespace LashingCalculator
     } 
 }
             
-
