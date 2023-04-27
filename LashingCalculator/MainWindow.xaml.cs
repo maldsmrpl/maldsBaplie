@@ -12,6 +12,8 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Diagnostics;
+
 
 namespace LashingCalculator
 {
@@ -91,6 +93,7 @@ namespace LashingCalculator
                     }
 
                     if (currentItem == null) continue;
+                    currentItem.Segments.Add(segment);
 
                     if (segment.Id.Equals("DIM", StringComparison.OrdinalIgnoreCase))
                     {
@@ -119,13 +122,20 @@ namespace LashingCalculator
                         currentItem.RightOverDim = rightOverDim;
                         currentItem.TopOverDim = topOverDim;
 
-                        // Check if any overdimension is greater than zero.
+                        
                         if (leftOverDim > 0 || rightOverDim > 0 || topOverDim > 0)
                         {
                             currentItem.IsOOG = true;
                             oogCount++;
                         }
                     }
+
+                    //if (segment.Id.Equals("FTX", StringComparison.OrdinalIgnoreCase) && segment.Elements.Count >= 4)
+                    //{
+                    //    decimal.TryParse(segment.Elements[3]?.Value, out decimal temperature);
+                    //    currentItem.Temperature = (float)temperature;
+                    //}
+
 
 
                     if (segment.Id.Equals("LOC", StringComparison.OrdinalIgnoreCase) && segment.Elements.Count >= 2 && segment.Elements[0]?.Value == "147")
@@ -156,15 +166,20 @@ namespace LashingCalculator
 
                     if (segment.Id.Equals("DGS", StringComparison.OrdinalIgnoreCase))
                     {
-                        dgCount++;
+                        if (!currentItem.IsDG)
+                        {
+                            currentItem.IsDG = true;
+                            dgCount++;
+                        }
                     }
+
                 }
 
                 if (currentItem != null)
                 {
                     BaplieItems.Add(currentItem);
                 }
-                // Update the counts displayed on the UI
+                
                 TextBlockTotalNumberOfBoxes.Text = GetTotalContainerCount().ToString();
                 TextBlockCountTEU.Text = CountTEU().ToString();
                 TextBlockCount20FootContainers.Text = Count20FootContainers().ToString();
@@ -204,40 +219,6 @@ namespace LashingCalculator
 
             return teuCount;
         }
-        private int GetMaxHeight(int size)
-        {
-            switch (size)
-            {
-                case 20:
-                    return 2591; // 8ft 6in in mm
-                case 40:
-                    return 2591; // 8ft 6in in mm
-                case 45:
-                    return 2591; // 8ft 6in in mm
-                default:
-                    return 0;
-            }
-        }
-
-        private int GetMaxWidth(int size)
-        {
-            return 2438; // 8ft in mm
-        }
-
-        private int GetMaxLength(int size)
-        {
-            switch (size)
-            {
-                case 20:
-                    return 6096; // 20ft in mm
-                case 40:
-                    return 12192; // 40ft in mm
-                case 45:
-                    return 13716; // 45ft in mm
-                default:
-                    return 0;
-            }
-        }
 
 
         private int CountRFContainers()
@@ -246,14 +227,22 @@ namespace LashingCalculator
 
             foreach (var item in BaplieItems)
             {
-                if (item.IsoCode != null && item.IsoCode.Length >= 3 && (item.IsoCode[2] == 'R' || item.IsoCode[2] == 'H'))
+                foreach (var segment in item.Segments)
                 {
-                    count++;
+                    if (segment.Id.Equals("TMP", StringComparison.OrdinalIgnoreCase) && segment.Elements.Count >= 2)
+                    {
+                        item.Temperature = segment.Elements[1]?.Value;
+                    }
                 }
             }
 
+            count = BaplieItems.Count(item => item.Temperature != null);
+
             return count;
         }
+
+
+
 
         private int CountOOGContainers()
         {
@@ -359,4 +348,3 @@ namespace LashingCalculator
         }
     } 
 }
-            

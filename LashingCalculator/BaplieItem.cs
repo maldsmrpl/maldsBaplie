@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EdiTools;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,6 +18,9 @@ namespace LashingCalculator
         public int LeftOverDim { get; set; }
         public int RightOverDim { get; set; }
         public int TopOverDim { get; set; }
+        public bool IsDG { get; set; }
+        public string? Temperature { get; set; }
+        public List<EdiSegment> Segments { get; set; } = new List<EdiSegment>();
 
     }
 }
